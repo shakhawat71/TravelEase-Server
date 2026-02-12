@@ -113,20 +113,32 @@ async function run() {
 
     // POST booking
     app.post("/bookings", async (req, res) => {
-      try {
-        const booking = req.body;
+  const booking = req.body;
 
-        // Optional: ensure bookingDate exists
-        if (!booking.bookingDate) {
-          booking.bookingDate = new Date().toISOString();
-        }
+  const { vehicleId, startDate, endDate } = booking;
 
-        const result = await bookingsCollection.insertOne(booking);
-        res.send(result);
-      } catch (err) {
-        res.status(500).send({ message: "Failed to create booking", error: err });
-      }
+  const query = {
+    vehicleId: vehicleId,
+    $or: [
+      {
+        startDate: { $lte: endDate },
+        endDate: { $gte: startDate },
+      },
+    ],
+  };
+
+  const existingBooking = await bookingsCollection.findOne(query);
+
+  if (existingBooking) {
+    return res.status(400).send({
+      message: "This vehicle is already booked for selected dates!",
     });
+  }
+
+  const result = await bookingsCollection.insertOne(booking);
+  res.send(result);
+});
+
 
     // GET bookings OR by user email
     // /bookings
