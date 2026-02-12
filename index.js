@@ -6,11 +6,11 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// middleware
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-
+// MongoDB URI (Atlas)
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -27,68 +27,134 @@ async function run() {
 
     const db = client.db("travelEaseDB");
     const vehiclesCollection = db.collection("vehicles");
+    const bookingsCollection = db.collection("bookings");
 
-    // ✅ Root test
+    // Root test route
     app.get("/", (req, res) => {
-      res.send("TravelEase Server is Running ✅");
+      res.send("TravelEase Server is Running");
     });
 
-    // ✅ GET all vehicles
+
+    // GET all vehicles OR by user email
+    // /vehicles
+    // /vehicles?email=someone@gmail.com
     app.get("/vehicles", async (req, res) => {
-    const email = req.query.email;
+      try {
+        const email = req.query.email;
 
-    let query = {};
-    if (email) {
-    query = { userEmail: email };
-    }
+        let query = {};
+        if (email) {
+          query = { userEmail: email };
+        }
 
-    const result = await vehiclesCollection.find(query).toArray();
-    res.send(result);
+        const result = await vehiclesCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to fetch vehicles", error: err });
+      }
     });
 
+    // GET single vehicle by id
+    app.get("/vehicles/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to fetch vehicle", error: err });
+      }
+    });
 
     // POST a vehicle
     app.post("/vehicles", async (req, res) => {
-      const vehicle = req.body;
-      const result = await vehiclesCollection.insertOne(vehicle);
-      res.send(result);
+      try {
+        const vehicle = req.body;
+
+        // Optional: ensure createdAt exists
+        if (!vehicle.createdAt) {
+          vehicle.createdAt = new Date().toISOString();
+        }
+
+        const result = await vehiclesCollection.insertOne(vehicle);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to add vehicle", error: err });
+      }
     });
 
-    // GET single vehicle
-    app.get("/vehicles/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
-      res.send(result);
-    });
-
-    // DELETE a vehicle
-    app.delete("/vehicles/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await vehiclesCollection.deleteOne({ _id: new ObjectId(id) });
-      res.send(result);
-    });
-
-    //  UPDATE a vehicle
+    // PATCH update vehicle by id
     app.patch("/vehicles/:id", async (req, res) => {
-      const id = req.params.id;
-      const updatedData = req.body;
+      try {
+        const id = req.params.id;
+        const updatedData = req.body;
 
-      const result = await vehiclesCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updatedData }
-      );
+        const result = await vehiclesCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: updatedData }
+        );
 
-      res.send(result);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to update vehicle", error: err });
+      }
+    });
+
+    // DELETE vehicle by id
+    app.delete("/vehicles/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await vehiclesCollection.deleteOne({ _id: new ObjectId(id) });
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to delete vehicle", error: err });
+      }
+    });
+
+
+    // POST booking
+    app.post("/bookings", async (req, res) => {
+      try {
+        const booking = req.body;
+
+        // Optional: ensure bookingDate exists
+        if (!booking.bookingDate) {
+          booking.bookingDate = new Date().toISOString();
+        }
+
+        const result = await bookingsCollection.insertOne(booking);
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to create booking", error: err });
+      }
+    });
+
+    // GET bookings OR by user email
+    // /bookings
+    // /bookings?email=someone@gmail.com
+    app.get("/bookings", async (req, res) => {
+      try {
+        const email = req.query.email;
+
+        let query = {};
+        if (email) {
+          query = { userEmail: email };
+        }
+
+        const result = await bookingsCollection.find(query).toArray();
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Failed to fetch bookings", error: err });
+      }
     });
 
     console.log("MongoDB Connected & API Ready");
   } catch (error) {
-    console.log(error);
+    console.log("MongoDB connection error:", error);
   }
 }
 
 run();
 
 app.listen(port, () => {
-  console.log(` Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
