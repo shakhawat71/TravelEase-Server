@@ -159,6 +159,16 @@ async function run() {
       }
     });
 
+    // ✅ DELETE booking
+    app.delete("/bookings/:id", async (req, res) => {
+    const id = req.params.id;
+    const result = await bookingsCollection.deleteOne({
+        _id: new ObjectId(id),
+    });
+    res.send(result);
+    });
+
+
     console.log("MongoDB Connected & API Ready");
   } catch (error) {
     console.log("MongoDB connection error:", error);
