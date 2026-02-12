@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,39 +10,85 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
-
-
-
-app.get("/", (req, res) => {
-  res.send("TravelEase Server is Running ✅");
-});
-
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+
+    const db = client.db("travelEaseDB");
+    const vehiclesCollection = db.collection("vehicles");
+
+    // ✅ Root test
+    app.get("/", (req, res) => {
+      res.send("TravelEase Server is Running ✅");
+    });
+
+    // ✅ GET all vehicles
+    app.get("/vehicles", async (req, res) => {
+    const email = req.query.email;
+
+    let query = {};
+    if (email) {
+    query = { userEmail: email };
+    }
+
+    const result = await vehiclesCollection.find(query).toArray();
+    res.send(result);
+    });
+
+
+    // POST a vehicle
+    app.post("/vehicles", async (req, res) => {
+      const vehicle = req.body;
+      const result = await vehiclesCollection.insertOne(vehicle);
+      res.send(result);
+    });
+
+    // GET single vehicle
+    app.get("/vehicles/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    // DELETE a vehicle
+    app.delete("/vehicles/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await vehiclesCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    //  UPDATE a vehicle
+    app.patch("/vehicles/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+
+      const result = await vehiclesCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData }
+      );
+
+      res.send(result);
+    });
+
+    console.log("MongoDB Connected & API Ready");
+  } catch (error) {
+    console.log(error);
   }
 }
-run().catch(console.dir);
 
+run();
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  console.log(` Server running on port ${port}`);
 });
