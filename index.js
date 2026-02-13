@@ -5,15 +5,13 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 
 /* ================================
-   ✅ CORS FIX FOR VERCEL
+   CORS FIX FOR VERCEL
 ================================ */
 const allowedOrigins = [
   "http://localhost:5173",
   "https://travelease-288b7.web.app",
   "https://travelease-288b7.firebaseapp.com",
 ];
-
-console.log("🚀 NEW INDEX.JS DEPLOYED");
 
 
 app.use((req, res, next) => {
@@ -42,7 +40,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 /* ================================
-   ✅ MongoDB Setup
+   MongoDB Setup
 ================================ */
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -72,14 +70,14 @@ async function connectDB() {
 }
 
 /* ================================
-   ✅ Root Route
+   Root Route
 ================================ */
 app.get("/", (req, res) => {
   res.send("TravelEase Server is Running ✅");
 });
 
 /* ================================
-   ✅ Vehicles Routes
+   Vehicles Routes
 ================================ */
 app.get("/vehicles", async (req, res) => {
   try {
@@ -178,7 +176,7 @@ app.delete("/vehicles/:id", async (req, res) => {
 });
 
 /* ================================
-   ✅ Bookings Routes
+   Bookings Routes
 ================================ */
 app.post("/bookings", async (req, res) => {
   try {
@@ -250,7 +248,4 @@ app.delete("/bookings/:id", async (req, res) => {
   }
 });
 
-/* ================================
-   ✅ Vercel Export
-================================ */
 module.exports = app;
