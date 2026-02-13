@@ -13,6 +13,9 @@ const allowedOrigins = [
   "https://travelease-288b7.firebaseapp.com",
 ];
 
+console.log("🚀 NEW INDEX.JS DEPLOYED");
+
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
