@@ -12,7 +12,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       // ✅ add your Netlify URL after deploy:
-      // "https://YOUR-NETLIFY-SITE.netlify.app",
+      "https://elaborate-pithivier-5f3704.netlify.app/"
     ],
     credentials: true,
   })
