@@ -1,5 +1,5 @@
 const express = require("express");
-const cors = require("cors");
+const cors = require('cors');
 require("dotenv").config();
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -7,16 +7,31 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 
 // ✅ Middleware
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      // ✅ add your Netlify URL after deploy:
-      "https://travelease-bd.netlify.app"
-    ],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://travelease-288b7.web.app",
+    "https://travelease-288b7.firebaseapp.com",
+  ],
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"],
+}));
+app.options("*", cors());
+
+
+
+
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:5173",
+//       
+//       "https://travelease-288b7.web.app"
+      
+//     ],
+//     credentials: true,
+//   })
+// );
 
 app.use(express.json());
 
