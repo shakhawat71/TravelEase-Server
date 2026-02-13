@@ -1,50 +1,46 @@
 const express = require("express");
-const cors = require('cors');
 require("dotenv").config();
-
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 
-// ✅ Middleware
+/* ================================
+   ✅ CORS FIX FOR VERCEL
+================================ */
 const allowedOrigins = [
   "http://localhost:5173",
   "https://travelease-288b7.web.app",
   "https://travelease-288b7.firebaseapp.com",
 ];
 
-// MUST be before routes
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // allow Postman
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-}));
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
 
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
 
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
 
-
-// app.use(
-//   cors({
-//     origin: [
-//       "http://localhost:5173",
-//       
-//       "https://travelease-288b7.web.app"
-      
-//     ],
-//     credentials: true,
-//   })
-// );
+  next();
+});
 
 app.use(express.json());
 
-// ✅ MongoDB
+/* ================================
+   ✅ MongoDB Setup
+================================ */
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -55,7 +51,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-// ✅ Cache DB connection for serverless
 let cachedDb = null;
 let cachedClientPromise = null;
 
@@ -67,18 +62,22 @@ async function connectDB() {
   }
 
   await cachedClientPromise;
-
   cachedDb = client.db("travelEaseDB");
   console.log("✅ MongoDB Connected");
+
   return cachedDb;
 }
 
-// ✅ Root
+/* ================================
+   ✅ Root Route
+================================ */
 app.get("/", (req, res) => {
   res.send("TravelEase Server is Running ✅");
 });
 
-// ✅ Vehicles
+/* ================================
+   ✅ Vehicles Routes
+================================ */
 app.get("/vehicles", async (req, res) => {
   try {
     const db = await connectDB();
@@ -90,7 +89,10 @@ app.get("/vehicles", async (req, res) => {
     const result = await vehiclesCollection.find(query).toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch vehicles", error: err.message });
+    res.status(500).send({
+      message: "Failed to fetch vehicles",
+      error: err.message,
+    });
   }
 });
 
@@ -100,10 +102,16 @@ app.get("/vehicles/:id", async (req, res) => {
     const vehiclesCollection = db.collection("vehicles");
 
     const id = req.params.id;
-    const result = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
+    const result = await vehiclesCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch vehicle", error: err.message });
+    res.status(500).send({
+      message: "Failed to fetch vehicle",
+      error: err.message,
+    });
   }
 });
 
@@ -118,7 +126,10 @@ app.post("/vehicles", async (req, res) => {
     const result = await vehiclesCollection.insertOne(vehicle);
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to add vehicle", error: err.message });
+    res.status(500).send({
+      message: "Failed to add vehicle",
+      error: err.message,
+    });
   }
 });
 
@@ -137,7 +148,10 @@ app.patch("/vehicles/:id", async (req, res) => {
 
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to update vehicle", error: err.message });
+    res.status(500).send({
+      message: "Failed to update vehicle",
+      error: err.message,
+    });
   }
 });
 
@@ -147,14 +161,22 @@ app.delete("/vehicles/:id", async (req, res) => {
     const vehiclesCollection = db.collection("vehicles");
 
     const id = req.params.id;
-    const result = await vehiclesCollection.deleteOne({ _id: new ObjectId(id) });
+    const result = await vehiclesCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete vehicle", error: err.message });
+    res.status(500).send({
+      message: "Failed to delete vehicle",
+      error: err.message,
+    });
   }
 });
 
-// ✅ Bookings
+/* ================================
+   ✅ Bookings Routes
+================================ */
 app.post("/bookings", async (req, res) => {
   try {
     const db = await connectDB();
@@ -170,6 +192,7 @@ app.post("/bookings", async (req, res) => {
     };
 
     const existing = await bookingsCollection.findOne(query);
+
     if (existing) {
       return res.status(400).send({
         message: "This vehicle is already booked for selected dates!",
@@ -179,7 +202,10 @@ app.post("/bookings", async (req, res) => {
     const result = await bookingsCollection.insertOne(booking);
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to add booking", error: err.message });
+    res.status(500).send({
+      message: "Failed to add booking",
+      error: err.message,
+    });
   }
 });
 
@@ -194,7 +220,10 @@ app.get("/bookings", async (req, res) => {
     const result = await bookingsCollection.find(query).toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch bookings", error: err.message });
+    res.status(500).send({
+      message: "Failed to fetch bookings",
+      error: err.message,
+    });
   }
 });
 
@@ -204,12 +233,21 @@ app.delete("/bookings/:id", async (req, res) => {
     const bookingsCollection = db.collection("bookings");
 
     const id = req.params.id;
-    const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
+
+    const result = await bookingsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete booking", error: err.message });
+    res.status(500).send({
+      message: "Failed to delete booking",
+      error: err.message,
+    });
   }
 });
 
-// ✅ Vercel export
+/* ================================
+   ✅ Vercel Export
+================================ */
 module.exports = app;
