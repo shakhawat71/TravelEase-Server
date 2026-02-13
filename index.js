@@ -4,15 +4,15 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 
-/* ================================
-   CORS FIX FOR VERCEL
-================================ */
+/* ======================================
+   ✅ PROPER CORS FOR VERCEL (FINAL)
+====================================== */
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://travelease-288b7.web.app",
   "https://travelease-288b7.firebaseapp.com",
 ];
-
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -25,13 +25,15 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Methods",
     "GET,POST,PUT,PATCH,DELETE,OPTIONS"
   );
+
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
 
+  // 🔥 Handle Preflight Requests
   if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
+    return res.status(200).end();
   }
 
   next();
@@ -39,9 +41,10 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-/* ================================
-   MongoDB Setup
-================================ */
+/* ======================================
+   ✅ MongoDB Setup
+====================================== */
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -69,28 +72,30 @@ async function connectDB() {
   return cachedDb;
 }
 
-/* ================================
-   Root Route
-================================ */
+/* ======================================
+   ✅ Root Route
+====================================== */
+
 app.get("/", (req, res) => {
   res.send("TravelEase Server is Running ✅");
 });
 
-/* ================================
-   Vehicles Routes
-================================ */
+/* ======================================
+   ✅ Vehicles Routes
+====================================== */
+
 app.get("/vehicles", async (req, res) => {
   try {
     const db = await connectDB();
-    const vehiclesCollection = db.collection("vehicles");
+    const collection = db.collection("vehicles");
 
     const email = req.query.email;
     const query = email ? { userEmail: email } : {};
 
-    const result = await vehiclesCollection.find(query).toArray();
-    res.send(result);
+    const result = await collection.find(query).toArray();
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to fetch vehicles",
       error: err.message,
     });
@@ -100,16 +105,15 @@ app.get("/vehicles", async (req, res) => {
 app.get("/vehicles/:id", async (req, res) => {
   try {
     const db = await connectDB();
-    const vehiclesCollection = db.collection("vehicles");
+    const collection = db.collection("vehicles");
 
-    const id = req.params.id;
-    const result = await vehiclesCollection.findOne({
-      _id: new ObjectId(id),
+    const result = await collection.findOne({
+      _id: new ObjectId(req.params.id),
     });
 
-    res.send(result);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to fetch vehicle",
       error: err.message,
     });
@@ -119,15 +123,15 @@ app.get("/vehicles/:id", async (req, res) => {
 app.post("/vehicles", async (req, res) => {
   try {
     const db = await connectDB();
-    const vehiclesCollection = db.collection("vehicles");
+    const collection = db.collection("vehicles");
 
     const vehicle = req.body;
-    if (!vehicle.createdAt) vehicle.createdAt = new Date().toISOString();
+    vehicle.createdAt = new Date().toISOString();
 
-    const result = await vehiclesCollection.insertOne(vehicle);
-    res.send(result);
+    const result = await collection.insertOne(vehicle);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to add vehicle",
       error: err.message,
     });
@@ -137,19 +141,16 @@ app.post("/vehicles", async (req, res) => {
 app.patch("/vehicles/:id", async (req, res) => {
   try {
     const db = await connectDB();
-    const vehiclesCollection = db.collection("vehicles");
+    const collection = db.collection("vehicles");
 
-    const id = req.params.id;
-    const updatedData = req.body;
-
-    const result = await vehiclesCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: updatedData }
+    const result = await collection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: req.body }
     );
 
-    res.send(result);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to update vehicle",
       error: err.message,
     });
@@ -159,51 +160,49 @@ app.patch("/vehicles/:id", async (req, res) => {
 app.delete("/vehicles/:id", async (req, res) => {
   try {
     const db = await connectDB();
-    const vehiclesCollection = db.collection("vehicles");
+    const collection = db.collection("vehicles");
 
-    const id = req.params.id;
-    const result = await vehiclesCollection.deleteOne({
-      _id: new ObjectId(id),
+    const result = await collection.deleteOne({
+      _id: new ObjectId(req.params.id),
     });
 
-    res.send(result);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to delete vehicle",
       error: err.message,
     });
   }
 });
 
-/* ================================
-   Bookings Routes
-================================ */
+/* ======================================
+   ✅ Bookings Routes
+====================================== */
+
 app.post("/bookings", async (req, res) => {
   try {
     const db = await connectDB();
-    const bookingsCollection = db.collection("bookings");
+    const collection = db.collection("bookings");
 
     const booking = req.body;
     const { vehicleId, startDate, endDate } = booking;
 
-    const query = {
+    const existing = await collection.findOne({
       vehicleId,
       startDate: { $lte: endDate },
       endDate: { $gte: startDate },
-    };
-
-    const existing = await bookingsCollection.findOne(query);
+    });
 
     if (existing) {
-      return res.status(400).send({
-        message: "This vehicle is already booked for selected dates!",
+      return res.status(400).json({
+        message: "Vehicle already booked for selected dates!",
       });
     }
 
-    const result = await bookingsCollection.insertOne(booking);
-    res.send(result);
+    const result = await collection.insertOne(booking);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to add booking",
       error: err.message,
     });
@@ -213,15 +212,15 @@ app.post("/bookings", async (req, res) => {
 app.get("/bookings", async (req, res) => {
   try {
     const db = await connectDB();
-    const bookingsCollection = db.collection("bookings");
+    const collection = db.collection("bookings");
 
     const email = req.query.email;
     const query = email ? { userEmail: email } : {};
 
-    const result = await bookingsCollection.find(query).toArray();
-    res.send(result);
+    const result = await collection.find(query).toArray();
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to fetch bookings",
       error: err.message,
     });
@@ -231,21 +230,23 @@ app.get("/bookings", async (req, res) => {
 app.delete("/bookings/:id", async (req, res) => {
   try {
     const db = await connectDB();
-    const bookingsCollection = db.collection("bookings");
+    const collection = db.collection("bookings");
 
-    const id = req.params.id;
-
-    const result = await bookingsCollection.deleteOne({
-      _id: new ObjectId(id),
+    const result = await collection.deleteOne({
+      _id: new ObjectId(req.params.id),
     });
 
-    res.send(result);
+    res.json(result);
   } catch (err) {
-    res.status(500).send({
+    res.status(500).json({
       message: "Failed to delete booking",
       error: err.message,
     });
   }
 });
+
+/* ======================================
+   ✅ Export for Vercel
+====================================== */
 
 module.exports = app;
