@@ -1,18 +1,18 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 
-// ✅ CORS (allow your client domains)
+// ✅ Middleware
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "http://localhost:3000",
-      // ✅ add your Netlify live site later:
-      // "https://your-netlify-site.netlify.app"
+      // ✅ add your Netlify URL after deploy:
+      // "https://YOUR-NETLIFY-SITE.netlify.app",
     ],
     credentials: true,
   })
@@ -20,7 +20,7 @@ app.use(
 
 app.use(express.json());
 
-// MongoDB URI (Atlas)
+// ✅ MongoDB
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.p6fabb5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -31,28 +31,34 @@ const client = new MongoClient(uri, {
   },
 });
 
-let vehiclesCollection;
-let bookingsCollection;
+// ✅ Cache DB connection for serverless
+let cachedDb = null;
+let cachedClientPromise = null;
 
-// ✅ Connect once and reuse (Vercel needs this style)
 async function connectDB() {
-  if (vehiclesCollection && bookingsCollection) return;
+  if (cachedDb) return cachedDb;
 
-  await client.connect();
-  const db = client.db("travelEaseDB");
-  vehiclesCollection = db.collection("vehicles");
-  bookingsCollection = db.collection("bookings");
+  if (!cachedClientPromise) {
+    cachedClientPromise = client.connect();
+  }
+
+  await cachedClientPromise;
+
+  cachedDb = client.db("travelEaseDB");
   console.log("✅ MongoDB Connected");
+  return cachedDb;
 }
 
-app.get("/", async (req, res) => {
+// ✅ Root
+app.get("/", (req, res) => {
   res.send("TravelEase Server is Running ✅");
 });
 
-// GET all vehicles OR by user email
+// ✅ Vehicles
 app.get("/vehicles", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const vehiclesCollection = db.collection("vehicles");
 
     const email = req.query.email;
     const query = email ? { userEmail: email } : {};
@@ -60,27 +66,27 @@ app.get("/vehicles", async (req, res) => {
     const result = await vehiclesCollection.find(query).toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch vehicles", error: err });
+    res.status(500).send({ message: "Failed to fetch vehicles", error: err.message });
   }
 });
 
-// GET single vehicle by id
 app.get("/vehicles/:id", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const vehiclesCollection = db.collection("vehicles");
 
     const id = req.params.id;
     const result = await vehiclesCollection.findOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch vehicle", error: err });
+    res.status(500).send({ message: "Failed to fetch vehicle", error: err.message });
   }
 });
 
-// POST a vehicle
 app.post("/vehicles", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const vehiclesCollection = db.collection("vehicles");
 
     const vehicle = req.body;
     if (!vehicle.createdAt) vehicle.createdAt = new Date().toISOString();
@@ -88,14 +94,14 @@ app.post("/vehicles", async (req, res) => {
     const result = await vehiclesCollection.insertOne(vehicle);
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to add vehicle", error: err });
+    res.status(500).send({ message: "Failed to add vehicle", error: err.message });
   }
 });
 
-// PATCH update vehicle by id
 app.patch("/vehicles/:id", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const vehiclesCollection = db.collection("vehicles");
 
     const id = req.params.id;
     const updatedData = req.body;
@@ -107,27 +113,28 @@ app.patch("/vehicles/:id", async (req, res) => {
 
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to update vehicle", error: err });
+    res.status(500).send({ message: "Failed to update vehicle", error: err.message });
   }
 });
 
-// DELETE vehicle by id
 app.delete("/vehicles/:id", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const vehiclesCollection = db.collection("vehicles");
 
     const id = req.params.id;
     const result = await vehiclesCollection.deleteOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete vehicle", error: err });
+    res.status(500).send({ message: "Failed to delete vehicle", error: err.message });
   }
 });
 
-// POST booking (date overlap check)
+// ✅ Bookings
 app.post("/bookings", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const bookingsCollection = db.collection("bookings");
 
     const booking = req.body;
     const { vehicleId, startDate, endDate } = booking;
@@ -138,9 +145,8 @@ app.post("/bookings", async (req, res) => {
       endDate: { $gte: startDate },
     };
 
-    const existingBooking = await bookingsCollection.findOne(query);
-
-    if (existingBooking) {
+    const existing = await bookingsCollection.findOne(query);
+    if (existing) {
       return res.status(400).send({
         message: "This vehicle is already booked for selected dates!",
       });
@@ -149,14 +155,14 @@ app.post("/bookings", async (req, res) => {
     const result = await bookingsCollection.insertOne(booking);
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to add booking", error: err });
+    res.status(500).send({ message: "Failed to add booking", error: err.message });
   }
 });
 
-// GET bookings OR by user email
 app.get("/bookings", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const bookingsCollection = db.collection("bookings");
 
     const email = req.query.email;
     const query = email ? { userEmail: email } : {};
@@ -164,24 +170,22 @@ app.get("/bookings", async (req, res) => {
     const result = await bookingsCollection.find(query).toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch bookings", error: err });
+    res.status(500).send({ message: "Failed to fetch bookings", error: err.message });
   }
 });
 
-// DELETE booking
 app.delete("/bookings/:id", async (req, res) => {
   try {
-    await connectDB();
+    const db = await connectDB();
+    const bookingsCollection = db.collection("bookings");
 
     const id = req.params.id;
-    const result = await bookingsCollection.deleteOne({
-      _id: new ObjectId(id),
-    });
+    const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete booking", error: err });
+    res.status(500).send({ message: "Failed to delete booking", error: err.message });
   }
 });
 
-// ✅ Export for Vercel (NO app.listen)
+// ✅ Vercel export
 module.exports = app;
