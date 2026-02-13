@@ -7,16 +7,25 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 
 // ✅ Middleware
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://travelease-288b7.web.app",
+  "https://travelease-288b7.firebaseapp.com",
+];
+
+// MUST be before routes
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://travelease-288b7.web.app",
-    "https://travelease-288b7.firebaseapp.com",
-  ],
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"],
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow Postman
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
 }));
-app.options("*", cors());
 
 
 
